@@ -194,7 +194,10 @@ useradd -d /home/ZHduan -m ZHduan
 passwd ZHduan
 
 chmod 777 /etc/sudoers
+vim /etc/sudoers
 chmod 440 /etc/sudoers
+
+ls -al 检查一下 当然可以直接grep sudoers
 ```
 
 ![Image](src)
