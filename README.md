@@ -66,6 +66,24 @@ do_swap_page()会首先调用lookup_swap_cache(),判断相应的内存页面是�
 至于Linux是如何淘汰页面的,是一个比较复杂的话题,但大体说来它所采用的淘汰策略是LRU.
 
 
+## Glibc安装
+
+```markdown
+mkdir glibc-build-2.15    //不能再src里面装
+
+cd glibc-build-2.15
+
+../glibc-2.19/configure  --prefix=/usr --disable-profile --enable-add-ons --with-headers=/usr/include --with-binutils=/usr/bin
+
+make >buildtest
+
+make install
+
+```
+
+[相关资料2](http://blog.csdn.net/officercat/article/details/39520227)
+
+
 ## 内核安装编译，启动项改变，和内核删除
 
 ### 内核删除
@@ -179,9 +197,9 @@ chmod 777 /etc/sudoers
 chmod 440 /etc/sudoers
 ```
 
-and ![Image](src)
+![Image](src)
 
-### Support and Contact
+## Support and Contact
 ZHduan [个人主页](https://gumi-presentation-by-dzh.github.io/Myresume/index.html)
 Email 122316931@qq.com
 
