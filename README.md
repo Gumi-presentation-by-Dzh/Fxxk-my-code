@@ -1,13 +1,13 @@
-﻿## 技术备忘录
-
-You can use the [editor on GitHub](https://github.com/Gumi-presentation-by-Dzh/ZHduan.github.io/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+﻿# 技术备忘录
 
 这里将记录并分享一些我在实际编程或项目中遇到的一些问题，和我解决这些问题的思路和想法，当然也会分享一些有关linux内核，和linux实际常用的小skill。
 
 ![GitHub Logo](/images/logo.png)
 Format: ![Alt Text](url)
 
-### Linux缺页中断处理
+===========================
+
+## Linux缺页中断处理
 
 Linux缺页中断处理
 
@@ -69,10 +69,49 @@ do_swap_page()会首先调用lookup_swap_cache(),判断相应的内存页面是�
 事实上,其中的 alloc_page,read_swap_cache等调用都可能导致其他页面被换出.
 至于Linux是如何淘汰页面的,是一个比较复杂的话题,但大体说来它所采用的淘汰策略是LRU.
 
+===========================
 
-### Markdown
+## 内核安装编译，启动项改变，和内核删除
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+### 内核删除
+
+```markdown
+   uname -r       该命令会告诉你当前使用的内核版本
+```
+
+接下来，如果你是自己动手编译的内核的话，请删除以下文件和文件夹
+
+1. 删除掉/lib/modules/目录下过时的内核库文件
+2. 删除掉/usr/src/kernels/目录下过时的内核源代码
+3. 删除掉/boot目录下启动的核心档案以及内核映像
+4. 更改/boot/grub/menu.lst，删除掉不用的启动列表
+
+### 内核编译安装
+
+```markdown
+make mrproper #清理上次编译的现场 
+
+cp /boot/config-($uname -r) .config #将当前系统的配置文件拷贝到当前目录
+
+sh -c 'yes "" | make oldconfig' #使用旧内核配置，并自动接受每个新增选项的默认设置
+
+sudo make -j20 bzImage #生成内核文件
+sudo make -j20 modules #编译模块
+sudo make -j20 modules_install #编译安装模块
+
+sudo make install #内核安装
+```
+
+### 修改启动项
+
+```markdown
+sudo vim /etc/default/grub
+
+memmap=16G\\\$4G
+
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg //生成grub2的配置文件
+```
+===========================
 
 ```markdown
 Syntax highlighted code block
