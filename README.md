@@ -3,11 +3,6 @@
 
 这里将记录并分享一些我在实际编程或项目中遇到的一些问题，和我解决这些问题的思路和想法，当然也会分享一些有关linux内核，和linux实际常用的小skill。
 
-![GitHub Logo](/images/logo.png)
-Format: ![Alt Text](url)
-
-===========================
-
 ## Linux缺页中断处理
 
 Linux缺页中断处理
@@ -70,8 +65,6 @@ do_swap_page()会首先调用lookup_swap_cache(),判断相应的内存页面是�
 事实上,其中的 alloc_page,read_swap_cache等调用都可能导致其他页面被换出.
 至于Linux是如何淘汰页面的,是一个比较复杂的话题,但大体说来它所采用的淘汰策略是LRU.
 
-===========================
-
 ## 内核安装编译，启动项改变，和内核删除
 
 ### 内核删除
@@ -112,32 +105,56 @@ memmap=16G\\\$4G
 
 sudo grub2-mkconfig -o /boot/grub2/grub.cfg //生成grub2的配置文件
 ```
-===========================
+
+## linux常用技巧
+
+### core-debug和gdb
 
 ```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+gcc -g -rdynamic x.c
+gdb ./a.out
 ```
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+### 文件夹内容复制
 
+```markdown
+cp -rf glibc-2.19/* NVM_malloc/ #*代表所有子目录文件
+```
+
+### 文件夹内容复制
+
+```markdown
+cp -rf glibc-2.19/* NVM_malloc/ #*代表所有子目录文件
+```
+
+### nm命令查看目标文件符号清单
+
+```markdown
+nm -A libso.a
+```
+
+### 后台进程挂起
+
+```markdown
+nohup command > myout.file & #命令行  输出到  myout.file 
+ps -aux |grep "git"  #查看挂起进程
+```
+
+### 添加linux用户
+
+```markdown
+useradd -d /home/ZHduan -m ZHduan
+passwd ZHduan
+
+chmod 777 /etc/sudoers
+chmod 440 /etc/sudoers
+```
+
+
+
+
+[Link](url) and ![Image](src)
 ### Jekyll Themes
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/Gumi-presentation-by-Dzh/ZHduan.github.io/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
 
-### Support or Contact
 
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.
