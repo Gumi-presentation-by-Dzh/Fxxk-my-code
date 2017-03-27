@@ -81,7 +81,7 @@ make install
 
 ```
 
-[相关资料2](http://blog.csdn.net/officercat/article/details/39520227)
+[相关资料](http://blog.csdn.net/officercat/article/details/39520227)
 
 
 ## 内核安装编译，启动项改变，和内核删除
