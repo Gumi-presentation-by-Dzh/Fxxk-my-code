@@ -121,12 +121,6 @@ gdb ./a.out
 cp -rf glibc-2.19/* NVM_malloc/ #*代表所有子目录文件
 ```
 
-### 文件夹内容复制
-
-```markdown
-cp -rf glibc-2.19/* NVM_malloc/ #*代表所有子目录文件
-```
-
 ### nm命令查看目标文件符号清单
 
 ```markdown
@@ -150,11 +144,10 @@ chmod 777 /etc/sudoers
 chmod 440 /etc/sudoers
 ```
 
+and ![Image](src)
 
-
-
-[Link](url) and ![Image](src)
-### Jekyll Themes
-
+### Support and Contact
+ZHduan [个人主页](https://gumi-presentation-by-dzh.github.io/Myresume/index.html)
+Email 122316931@qq.com
 
 
