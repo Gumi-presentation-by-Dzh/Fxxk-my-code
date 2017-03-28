@@ -91,9 +91,11 @@ static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
 ```
 
 可以看到之后的操作会用vm_flags与定义事件VM_……与，等到逻辑值。
+```markdown
 #define VM_HUGETLB    0x00400000    /* Huge TLB Page VM */
 #define VM_NONLINEAR    0x00800000    /* Is non-linear (remap_file_pages) */
 类似定义出VM_NVM
+```
 
 ```markdown
 实际内核定义在  linux/mm.h中
