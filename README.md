@@ -68,7 +68,7 @@ do_swap_page()会首先调用lookup_swap_cache(),判断相应的内存页面是�
 
 ## 关于异构内存细粒度内存分配实现方法的思想
 
-![Image](https://github.com/Gumi-presentation-by-Dzh/Fxxk-my-code/blob/master/image/1.jpg)
+![](https://github.com/Gumi-presentation-by-Dzh/Fxxk-my-code/blob/master/image/1.jpg)
 
 ### 内核层
 
