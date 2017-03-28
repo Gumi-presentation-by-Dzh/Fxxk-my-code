@@ -68,10 +68,37 @@ do_swap_page()会首先调用lookup_swap_cache(),判断相应的内存页面是�
 
 ## 关于异构内存细粒度内存分配实现方法的思想
 
+
 ![](https://github.com/Gumi-presentation-by-Dzh/Fxxk-my-code/raw/master/image/1.jpg)
+
 
 ### 内核层
 
+[相关资料](http://blog.csdn.net/vanbreaker/article/details/7855007)
+
+在VMA中将新的NVM_VMA标记进去
+——在linux/mm_type中可以找到VMA的定义vm_area_struct
+————结构体中有一部分是unsigned long vm_flags;        /* Flags, see mm.h. */   这个地方可以理解成标记
+
+可以在mm.h中看到一些对于vm_flags的定义，也就是说要在这里加入NVM_VMA标记
+
+```markdown
+/* Is the vma a continuation of the stack vma above it? */
+static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
+{
+    return vma && (vma->vm_end == addr) && (vma->vm_flags & VM_GROWSDOWN);
+}
+```
+
+可以看到之后的操作会用vm_flags与定义事件VM_……与，等到逻辑值。
+#define VM_HUGETLB    0x00400000    /* Huge TLB Page VM */
+#define VM_NONLINEAR    0x00800000    /* Is non-linear (remap_file_pages) */
+类似定义出VM_NVM
+
+```markdown
+实际内核定义在  linux/mm.h中
+其值为#define VM_NVM          0x08000000      /*marked this vma to use NVM malloc*/
+```
 
 
 ## Glibc安装
