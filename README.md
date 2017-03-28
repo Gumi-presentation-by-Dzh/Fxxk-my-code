@@ -102,6 +102,17 @@ static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
 其值为#define VM_NVM          0x08000000      /*marked this vma to use NVM malloc*/
 ```
 
+![](https://github.com/Gumi-presentation-by-Dzh/Fxxk-my-code/raw/master/image/2.jpg)
+![](https://github.com/Gumi-presentation-by-Dzh/Fxxk-my-code/raw/master/image/3.jpg)
+
+
+参照mmap，添加nvm_mmap分支    （pmfs/mm/mmap.c  do_mmap_pgoff()  do_mmap()）
+nvm_mmap为vm_flags添加NVM_VMA标记（也就是定义在mm.h中的）
+```markdown
+vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) | mm->def_flags |
+VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;      --设置vm_flags，根据传入的port和flags以及mm本身自有的旗标来设置。
+```
+
 
 ## Glibc安装
 
