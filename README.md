@@ -3,6 +3,8 @@
 
 这里将记录并分享一些我在实际编程或项目中遇到的一些问题，和我解决这些问题的思路和想法，当然也会分享一些有关linux内核，和linux实际常用的小skill。
 
+------------
+
 ## Linux缺页中断处理
 
 Linux缺页中断处理
@@ -114,6 +116,7 @@ vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) | mm->def_flags |
 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;      --设置vm_flags，根据传入的port和flags以及mm本身自有的旗标来设置。
 ```
 
+------------
 
 ## Glibc安装
 
@@ -132,6 +135,7 @@ make install
 
 [相关资料](http://blog.csdn.net/officercat/article/details/39520227)
 
+------------
 
 ## 内核安装编译，启动项改变，和内核删除
 
@@ -174,6 +178,7 @@ memmap=16G\\\$4G
 sudo grub2-mkconfig -o /boot/grub2/grub.cfg //生成grub2的配置文件
 ```
 
+------------
 
 ## git常用技巧
 
@@ -207,6 +212,7 @@ git config --global user.email johndoe@example.com
 [相关资料1](http://www.yiibai.com/git/git_managing_branches.html)
 [相关资料2](http://blog.csdn.net/hhhccckkk/article/details/50737077)
 
+------------
 
 ## linux常用技巧
 
@@ -249,6 +255,7 @@ chmod 440 /etc/sudoers
 ls -al 检查一下 当然可以直接grep sudoers
 ```
 
+------------
 
 ## Support and Contact
 ZHduan [个人主页](https://gumi-presentation-by-dzh.github.io/Myresume/index.html)
