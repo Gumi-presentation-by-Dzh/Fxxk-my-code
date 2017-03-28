@@ -66,6 +66,11 @@ do_swap_page()会首先调用lookup_swap_cache(),判断相应的内存页面是�
 至于Linux是如何淘汰页面的,是一个比较复杂的话题,但大体说来它所采用的淘汰策略是LRU.
 
 
+## 关于异构内存细粒度内存分配实现方法的思想
+![Image](/image/1.jpg)
+### 内核层
+
+
 ## Glibc安装
 
 ```markdown
@@ -200,7 +205,6 @@ chmod 440 /etc/sudoers
 ls -al 检查一下 当然可以直接grep sudoers
 ```
 
-![Image](src)
 
 ## Support and Contact
 ZHduan [个人主页](https://gumi-presentation-by-dzh.github.io/Myresume/index.html)
