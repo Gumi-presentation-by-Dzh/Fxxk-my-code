@@ -116,6 +116,134 @@ vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) | mm->def_flags |
 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;      --设置vm_flags，根据传入的port和flags以及mm本身自有的旗标来设置。
 ```
 
+### 函数调用流程
+
+用户态：
+malloc调用mmap————>addr = mmap(NULL, 4096, PROT_READ|PORT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+//mmap(void* start, size_t length, int prot, int flags, int fd, off_t offset);
+对于malloc映射匿名内存来说，必须是以页为单位的，比如上面的4096。用户进程向内核空间分配内存都是直接向伙伴系统要的。在此基础上glibc将内存细化为可以按照字节分配的方式。
+mmap调用sys_mmap2（简单转调用）
+
+内核态：
+inline函数do_mmap()，是供内核自己用的，它也是将已打开文件映射到当前进程空间。
+在PMFS中的实现部分为 if(file)之后的部分对flag进行设置。
+
+```markdown
+    if (flags & MAP_NORESERVE) {              //可以直接利用这种模板来设计接口，但是要补货上层代码传入时候的时候flags的定义（即MAP_NORESERVE）的定义
+
+        /* hugetlb applies strict overcommit unless MAP_NORESERVE */
+
+        if (file && is_file_hugepages(file))
+
+            vm_flags |= VM_NORESERVE;
+
+    }
+```
+
+参数倒入可以查找到导入的头文件，可以找到
+
+```markdown
+#include <linux/mman.h>
+查找到/include/linux/mman.h
+又调用了#include <uapi/linux/mman.h>
+查找到/include/uapi/linux/mman.h
+之后可以在/include/uapi/asm-generic/mman.h 找到一些定义        （可能需要在这里加入flag参数的定义，可以认定在此添加NVM标记）
+
+include/linux/syscalls.h有大部分syscall的定义
+include/asm-generic/syscalls.h  可以找到sys_mmap2函数和sys_mmap.  调用（do_mmap2跳转sys_mmap_pgoff） ----->调用了sys_mmap_pgoff之后没函数定义了（最终归属）该被定义在include/linux/syscalls.h声明，推断调用内核的do_mmap_pgoff
+```
+
+由此可以推定：
+
+从stdlib来的malloc调用了mmap函数（网上说的是系统调用）
+
+直接会走对应的系统调用sys_mmap2（或sys_mmap）（系统调用）  途径do_mmap2直接调用内核的do_mmap_pgoff（网上的说法）（但内核中找不到网上提及的do_map内敛函数-PMFS内核linux3.11.0）
+
+但从PMFS内核分析可以看出，这个sys_mmap一般不会通过do_mmap2，而是调用syscall里面的sys_mmap_pgoff.此时极大可能通过此函数直接调用内核do_mmap_pgoff
+
+也就是说最终在内核态中都会使用do_mmap_pgoff
+则NVM内存分配应该在do_mmap_pgoff关联的函数中实现（例如pagefault（中科院思想））。
+
+何时，怎样对VM_flag设置成NVMtpye则需要考虑
+
+可以看出  mmap系列的传参数  很关键       （PMFS内设了MAP_ANONYMOUS | MAP_HUGETLB这两个特殊VM_FLAG参数，有极高的参考价值）
+在pmfs/tools/testing/selftests/vm/hugetlbfstest.c  可以看到这个设定。
+
+```markdown
+代码实际实现：
+在/mm/mmap中实现对VM_NVM的标记
+其中需要通过系统调用的mmap参数中的flag，而系统调用的mmap flag需要在/中设置
+    vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags) | mm->def_flags |
+               VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;      --设置vm_flags，根据传入的port和flags以及mm本身自有的旗标来设置。
+
+之后if (flags & MAP_NVM)
+            vm_flags |= VM_NVM;
+
+pmfs/include/uapi/asm-generic/mman-common.h添加MAP_NVM
+
+#define MAP_NVM         0x80000         /*creat a nvm page mapping*/
+
+#ifndef MAP_NVM
+#define MAP_NVM         0x80000
+#endif
+```
+
+Pagefault时，对标记位NVM_VMA的VMA，为其在node1节点上分配内存
+——vm_operations_struct  在linux/mm.h/int (*fault)(struct vm_area_struct *vma, struct vm_fault *vmf);/vma->vm_ops->fault（非重点）
+
+mm/fault.c
+do_page_fault()函数.
+
+page fault基本流程：
+从cr2中获取发生异常的地址
+——缺页地址位于内核态
+————位于vmalloc区？->从主内核页表同步数据到进程页表
+————非vmalloc区 ->不应该产生page fault->oops
+——缺页地址位于用户态
+————缺页上下文发生在内核态
+——————exception table中有相应的处理项？ ->进行修正
+——————没有 ->oops
+————查找vma
+——————找到？-> 是否expand stack？->堆栈扩展
+—————————— 不是->正常的缺页处理：handle_mm_fault                    
+——————没找到->bad_area  
+
+仿佛是通过  fault = handle_mm_fault(mm, vma, address, flags); 来实现的分配。  //密切关注 handle_pte_fault，并且要了明确了解handle_mm_fault的实现原理。
+
+大致流程中分为：
+地址为内核空间：
+1，当地址为内核地址空间并且在内核中访问时，如果是非连续内存地址，将init_mm中对应的项复制到本进程对应的页表项做修正；
+2，地址为内核空间时，检查页表的访问权限；
+3，如果1,2没搞定，跳到非法访问处理（在后面详细分析这个）；
+地址为用户空间：
+4，如果使用了保留位，打印信息，杀死当前进程；
+5，如果在中断上下文中火临界区中时，直接跳到非法访问；
+6，如果出错在内核空间中，查看异常表，进行相应的处理；
+7，查找地址对应的vma，如果找不到，直接跳到非法访问处，如果找到正常，跳到good_area；
+8，如果vma->start_address>address，可能是栈太小，对齐进行扩展；
+9，good_area处，再次检查权限；
+10，权限正确后分配新页框，页表等；
+
+```markdown
+do_page_fault()调用handle_mm_fault()调用handle_pte_fault()（do_no_page()被省略了（似乎））调用do_anonymous_page(),
+
+arch/x86/mm/fault.c——————>do_page_fault()
+
+pmfs/mm/memory.c——————>handle_mm_fault()
+出现了do_pmd_numa_page()也在这个文档里面
+
+pmfs/mm/memory.c——————>handle_pte_fault()
+出现了do_numa_page()也在这个文档里面
+
+pmfs/mm/memory.c中并没有定义do_no_page()，项目中也没有定义这个函数
+
+pmfs/mm/memory.c——————>do_anonymous_page()
+
+触发读写异常然后新分配一页,将相关属性写入到页面表项中
+
+节点分配页面貌似调用的是alloc_pages     pmfs/include/linux/gfp.h
+```
+
 ------------
 
 ## Glibc安装
