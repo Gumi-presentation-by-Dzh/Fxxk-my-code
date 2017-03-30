@@ -244,6 +244,79 @@ pmfs/mm/memory.c——————>do_anonymous_page()
 节点分配页面貌似调用的是alloc_pages     pmfs/include/linux/gfp.h
 ```
 
+
+模仿大页分支设计缺页分配
+
+[参考资料1](http://blog.csdn.net/vanbreaker/article/details/7881206)
+[参考资料2](http://blog.csdn.net/vanbreaker/article/details/7955713)
+
+也就是可以在获取VMA之后检查一下。然后做一个numa的分配
+类似
+
+就是把这个判断做到  handle_mm_fault()   pmfs/mm/memory.c里面去 即一个if  然后return到专门的fault函数里面去，不过因为这种分支方法非常复杂，很难设计。
+
+因为 handle_pte_fault带FLAGS参数了  所以也可以在 handle_pte_fault里面做。（这里需要连锁考虑do_numa page的两种方法在设置，即了解清楚函数本身）
+
+之后操作但是要避开原先的分配情况。
+（中科院的实现方法在这里，但是没有深刻理解pagefault之后的分配方法就无法找到调用对应物理地址映射的接口，这样就没有办法设计numa架构上的分配节点内存）
+
+
+```markdown
+实际实现在handle_pte_fault()    /mm/memory.c
+在判断了 pte_present()
+和pt_none之后直接开始分配
+if (!pte_present(entry)) {
+                if (pte_none(entry)) {
+                        if (vma->vm_flags & VM_NVM)
+                                return do_nvm_page(mm, vma, address, entry, pte, pmd);   //this way to insert a function using do_numa
+_page to set the targetnid to get a page.
+
+仿照do_numa_page写do_nvm_page函数。
+/*Using NUMA to set the page to NVM*/
+int do_nvm_page(struct mm_struct *mm, struct vm_area_struct *vma,
+                   unsigned long addr, pte_t pte, pte_t *ptep, pmd_t *pmd)
+{
+        struct page *page = NULL;
+        spinlock_t *ptl;
+        int current_nid = -1;
+        int target_nid=1;             /*target_nid is node1 which simulate the NVM*/
+        bool migrated = false;
+
+        ptl = pte_lockptr(mm, pmd);
+        spin_lock(ptl);
+
+        if (unlikely(!pte_same(*ptep, pte))) {
+                pte_unmap_unlock(ptep, ptl);
+                goto out;
+        }
+
+        pte = pte_mknonnuma(pte);
+        set_pte_at(mm, addr, ptep, pte);
+        update_mmu_cache(vma, addr, ptep);
+
+        page = vm_normal_page(vma, addr, pte);
+        if (!page) {
+                pte_unmap_unlock(ptep, ptl);
+                return 0;
+        }
+
+        current_nid = page_to_nid(page);
+        pte_unmap_unlock(ptep, ptl);
+
+        /* Migrate to the requested node */
+        migrated = migrate_misplaced_page(page, target_nid);
+        if (migrated)
+                current_nid = target_nid;
+
+out:
+        if (current_nid != -1)
+                task_numa_fault(current_nid, 1, migrated);
+        return 0;
+
+}
+```
+
+
 ------------
 
 ## Glibc安装
