@@ -316,6 +316,121 @@ out:
 }
 ```
 
+------------
+
+## DPDK相关关键路径函数
+
+[api库](http://dpdk.org/doc/api/)
+
+[编程者手册](http://dpdk.org/doc/guides/prog_guide/)
+
+### Environment Abstraction Layer (EAL)
+
+The Environment Abstraction Layer (EAL) is responsible for gaining access to low-level resources such as hardware and memory space. It provides a generic interface that hides the environment specifics from the applications and libraries. It is the responsibility of the initialization routine to decide how to allocate these resources (that is, memory space, PCI devices, timers, consoles, and so on).
+
+环境抽象层（EAL）负责获取访问底层硬件和存储空间等资源。它提供了一个通用接口，隐藏了应用程序和库的环境细节。初始化例程的职责是决定如何分配这些资源（即内存空间、PCI设备、定时器、控制台等）。
+
+Typical services expected from the EAL are:
+DPDK Loading and Launching: The DPDK and its application are linked as a single application and must be loaded by some means.
+Core Affinity/Assignment Procedures: The EAL provides mechanisms for assigning execution units to specific cores as well as creating execution instances.
+System Memory Reservation: The EAL facilitates the reservation of different memory zones, for example, physical memory areas for device interactions.
+系统内存保留：EAL便于不同的内存区域，保留为例，对装置的相互作用的物理内存区域。 
+PCI Address Abstraction: The EAL provides an interface to access PCI address space.
+Trace and Debug Functions: Logs, dump_stack, panic and so on.
+Utility Functions: Spinlocks and atomic counters that are not provided in libc.
+CPU Feature Identification: Determine at runtime if a particular feature, for example, Intel® AVX is supported. Determine if the current CPU supports the feature set that the binary was compiled for.
+Interrupt Handling: Interfaces to register/unregister callbacks to specific interrupt sources.
+Alarm Functions: Interfaces to set/remove callbacks to be run at a specific time.
+
+EAL使用hugetlbfs中的mmap（）执行物理内存分配（使用庞大的页面大小来提高性能）。 这个内存暴露给DPDK服务层，如Mempool Library。
+此时，DPDK服务层将被初始化，然后通过pthread setaffinity调用，每个执行单元将被分配给一个特定的逻辑内核作为用户级线程运行。
+时间参考由CPU时间戳计数器（TSC）或HPET内核API通过mmap（）调用提供。
+High Precision Event Timer （HPET)
+
+### Memory Mapping Discovery and Memory Reservation
+
+大型连续物理内存的分配是使用hugetlbfs内核文件系统完成的。 EAL提供了一个API来在这个连续的内存中保留命名的内存区域。 该存储器区域的保留存储器的物理地址也由存储器区域预留API返回给用户。
+
+使用rte_malloc提供的API完成的内存预留也由hugetlbfs文件系统的页面支持。
+
+### Xen Dom0 support without hugetbls
+
+现有的内存管理的实现是基于Linux内核的hugepage机制。然而，Xen dom0不支持hugepages，所以一个新的Linux内核模块rte_dom0_mm加入规避这个限制。            
+EAL使用ioctl接口通知Linux内核模块rte_dom0_mm分配指定大小的内存，并从模块得到所有的内存段的信息，并使用mmap映射实际分配的内存接口。每个内存段的物理地址是连续的，但在它实际的硬件地址在2mb相邻。
+
+### Memory Segments and Memory Zones (memzone)
+
+物理内存映射由EAL中的此功能提供。
+由于物理内存可能存在间隙，所以在描述符表中描述了存储器，并且每个描述符（称为rte_memseg）描述了存储器的连续部分。
+除此之外，memzone分配器的作用是保留物理内存的连续部分。当保留内存时，这些区域由唯一的名称标识。
+rte_memzone描述符也位于配置结构中。使用rte_eal_get_configuration（）访​​问此结构。内存区域的查找（按名称）返回包含内存区域的物理地址的描述符。
+通过提供align参数（默认情况下，它们与缓存行大小对齐），可以通过特定的起始地址对齐来保留内存区域。对齐值应为2的幂，不小于高速缓存行大小（64字节）。
+内存区域也可以从2 MB或1 GB的保留期间保留，前提是两者都可用于系统。
+
+```markdown
+[rte_memory.h](http://dpdk.org/doc/api/rte__memory_8h.html)
+
+[rte_malloc.h](http://dpdk.org/doc/api/rte__malloc_8h.html)
+root/lib/librte_eal/common/rte_malloc.c
+
+[rte_mempool.h](http://dpdk.org/doc/api/rte__mempool_8h.html)
+```
+
+### Memory Pool Manager (librte_mempool)
+
+内存池管理器负责在内存中分配对象池。 一个池由名称标识，并使用一个环来存储自由对象。 它提供了一些其他可选服务，例如每核心对象缓存和对齐帮助器，以确保填充对象以将它们均匀地扩展到所有RAM通道上。
+这个内存池分配器在Mempool Library中描述。
+
+### Network Packet Buffer Management (librte_mbuf)
+
+mbuf库提供了创建和销毁DPDK应用程序可以使用以存储消息缓冲区的缓冲区的功能。
+消息缓冲区在启动时创建，并使用DPDK mempool库存储在mempool中。
+该库提供了一个API来分配/释放mbufs，操纵用于承载网络数据包的通用消息缓冲区的控制消息缓冲区（ctrlmbuf）和数据包缓冲区（pktmbuf）。
+
+网络数据包缓冲区管理在Mbuf库中进行了描述。
+
+### 重点：Mempool Library
+
+[链接](http://dpdk.org/doc/guides/prog_guide/mempool_lib.html#mempool-library)
+A memory pool is an allocator of a fixed-sized object.
+In the DPDK, it is identified by name and uses a mempool handler to store free objects.
+The default mempool handler is ring based.
+It provides some other optional services such as a per-core object cache and an alignment helper to ensure that objects are padded to spread them equally on all DRAM or DDR3 channels.
+This library is used by the Mbuf Library.
+
+内存池是固定大小对象的分配器。
+在DPDK中，它由名称标识，并使用mempool处理程序来存储自由对象。
+默认的mempool处理程序是基于环的。
+它提供了一些其他可选服务，例如每个核心对象缓存和对齐帮助器，以确保对象被填充以将它们均匀地扩展到所有DRAM或DDR3通道上。
+该库由Mbuf库使用。
+
+### 重点：Malloc
+
+The EAL provides a malloc API to allocate any-sized memory.
+The objective of this API is to provide malloc-like functions to allow allocation from hugepage memory and to facilitate application porting.
+The DPDK API Reference manual describes the available functions.
+Typically, these kinds of allocations should not be done in data plane processing because they are slower than pool-based allocation and make use of locks within the allocation and free paths.
+However, they can be used in configuration code.
+Refer to the rte_malloc() function description in the DPDK API Reference manual for more information.
+
+EAL提供API来分配任意大小的内存分配。            
+这个API的目的是允许从hugepage内存分配malloc函数和提供方便应用程序的移植。            
+DPDK API参考手册描述了可用的功能。            
+通常，这些类型的分配不应该在数据平面处理中完成，因为它们比基于池的分配慢，并且在分配和自由路径中使用锁。            
+但是，它们可以用于配置代码。            
+是指在DPDK API参考手册的rte_malloc()函数描述的更多信息。
+
+### Packet Distributor Library
+
+![](https://github.com/Gumi-presentation-by-Dzh/Fxxk-my-code/raw/master/image/4.jpg)
+
+DPDK包经销商库用于动态负载均衡的流量，同时支持单包操作。使用这个库的时候，使用逻辑的核心是两个角色：首先考虑经销商lcore，这是负责负载均衡或分发包，和一组工人lcores是负责从分配器接收数据包和操作它们。
+
+### Worker Operation
+
+Worker cores are the cores which do the actual manipulation of the packets distributed by the packet distributor. Each worker calls “rte_distributor_get_pkt()” API to request a new packet when it has finished processing the previous one. [The previous packet should be returned to the distributor component by passing it as the final parameter to this API call.]
+Since it may be desirable to vary the number of worker cores, depending on the traffic load i.e. to save power at times of lighter load, it is possible to have a worker stop processing packets by calling “rte_distributor_return_pkt()” to indicate that it has finished the current packet and does not want a new one.
+
 
 ------------
 
